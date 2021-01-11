@@ -1,7 +1,4 @@
-// Copyright © 2017-2020 Chromely Projects. All rights reserved.
-// Use of this source code is governed by MIT license that can be found in the LICENSE file.
-
-using System;
+ï»¿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,30 +12,28 @@ using System.Threading.Tasks;
 using Chromely.Core.Configuration;
 using Chromely.Core.Infrastructure;
 using Chromely.Core.Logging;
+using Chromely.Interfaces;
+using Chromely.Models;
 using ICSharpCode.SharpZipLib.BZip2;
 using ICSharpCode.SharpZipLib.Tar;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xilium.CefGlue;
-// ReSharper disable MemberCanBePrivate.Global
 
 namespace Chromely.Loader
 {
-    /// <summary>
-    /// Loads the necessary CEF runtime files from cef-builds.spotifycdn.com
-    /// Inherits detailed version information from cefbuilds/index page.
-    /// Note:
-    /// Keep this class in a separate nuget package
-    /// due to additional reference to ICSharpCode.SharpZipLib.
-    /// Not everyone will be glad about this. 
-    /// </summary>
-    public class CefLoader
+    public class DynamicCefLoader : IDynamicCefLoader
     {
+        #region Properties
+
         private const string CefBuildsDownloadUrl = "https://cef-builds.spotifycdn.com";
+
         private static string CefBuildsDownloadIndex(string platform) => $"https://cef-builds.spotifycdn.com/index.html#{platform}_builds";
+
         private static string CefDownloadUrl(string name) => $"https://cef-builds.spotifycdn.com/{name}";
-        
+
         private static string MacOSConfigFile = "Info.plist";
-        
+
         private static string MacOSDefaultAppName = "Chromium Embedded Framework";
 
         /// <summary>
@@ -48,61 +43,7 @@ namespace Chromely.Loader
         // ReSharper disable once AutoPropertyCanBeMadeGetOnly.Global
         public int DownloadTimeoutMinutes { get; set; } = 10;
 
-        /// <summary>
-        /// Download CEF runtime files.
-        /// </summary>
-        /// <exception cref="Exception"></exception>
-        public static void Download(ChromelyPlatform platform)
-        {
-            Logger.Instance.Log.LogInformation("CefLoader: Installing CEF runtime from " + CefBuildsDownloadUrl);
-
-            var loader = new CefLoader(platform);
-            try
-            {
-                var watch = new Stopwatch();
-                watch.Start();
-                loader.GetDownloadUrl();
-                if (!loader.ParallelDownload())
-                {
-                    loader.Download();
-                }
-                Logger.Instance.Log.LogInformation($"CefLoader: Download took {watch.ElapsedMilliseconds}ms");
-                watch.Restart();
-                loader.DecompressArchive();
-                Logger.Instance.Log.LogInformation($"CefLoader: Decompressing archive took {watch.ElapsedMilliseconds}ms");
-                watch.Restart();
-                loader.CopyFilesToAppDirectory();
-                Logger.Instance.Log.LogInformation($"CefLoader: Copying files took {watch.ElapsedMilliseconds}ms");
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log.LogError("CefLoader: " + ex.Message);
-                throw;
-            }
-            finally
-            {
-                if (!string.IsNullOrEmpty(loader._tempBz2File))
-                {
-                    File.Delete(loader._tempBz2File);
-                }
-
-                if (!string.IsNullOrEmpty(loader._tempTarStream))
-                {
-                    File.Delete(loader._tempTarStream);
-                }
-                
-                if (!string.IsNullOrEmpty(loader._tempTarFile))
-                {
-                    File.Delete(loader._tempTarFile);
-                }
-                if (!string.IsNullOrEmpty(loader._tempDirectory) && Directory.Exists(loader._tempDirectory))
-                {
-                    Directory.Delete(loader._tempDirectory, true);
-                }
-            }
-        }
-
-
+        private readonly ILogger _logger;
         private readonly ChromelyPlatform _platform;
         private readonly Architecture _architecture;
         private readonly CefBuildNumbers _build;
@@ -120,12 +61,18 @@ namespace Chromely.Loader
         private readonly int _numberOfParallelDownloads;
         private int _lastPercent;
 
-        private CefLoader(ChromelyPlatform platform)
+        #endregion
+
+        #region Constructor
+
+        public DynamicCefLoader(IServiceProvider serviceProvider)
         {
-            _platform = platform;
+            _logger = serviceProvider.GetService<ILogger>();
+            _platform = serviceProvider.GetService<IChromelyConfiguration>().Platform;
+
             _architecture = RuntimeInformation.ProcessArchitecture;
             _build = ChromelyRuntime.GetExpectedCefBuild();
-            Logger.Instance.Log.LogInformation($"CefLoader: Load CEF for {_platform} {_architecture}, version {_build}");
+            _logger?.LogInformation($"CefLoader: Load CEF for {_platform} {_architecture}, version {_build}");
 
             _lastPercent = 0;
             _numberOfParallelDownloads = Environment.ProcessorCount;
@@ -136,21 +83,25 @@ namespace Chromely.Loader
             _tempDirectory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         }
 
+        #endregion
+
+        #region Methods
+
         /// <summary>
-        /// 
+        /// <inheritdoc />
         /// </summary>
         /// <param name="platform"></param>
         /// <param name="processArchitecture"></param>
         /// <param name="build"></param>
         /// <returns></returns>
-        public string FindCefArchiveName(ChromelyPlatform platform, Architecture processArchitecture, CefBuildNumbers build)
+        public virtual string FindCefArchiveName(ChromelyPlatform platform, Architecture processArchitecture, CefBuildNumbers build)
         {
             var arch = processArchitecture.ToString()
                 .Replace("X64", "64")
                 .Replace("X86", "32");
             var platformIdentifier = (platform + arch).ToLower();
             var indexUrl = CefBuildsDownloadIndex(platformIdentifier);
-            
+
             // cef_binary_3.3626.1895.g7001d56_windows64_client.tar.bz2
             var binaryNamePattern1 = $@"""(cef_binary_[0-9]+\.{build}\.[0-9]+\.(.*)_{platformIdentifier}_client.tar.bz2)""";
 
@@ -158,12 +109,12 @@ namespace Chromely.Loader
             // cef_binary_77.1.18+g8e8d602+chromium-77.0.3865.120_windows64_client.tar.bz2
             var versionPattern = build.CefVersion.Replace("+", "%2B");
             var binaryNamePattern2 = $@"""(cef_binary_{versionPattern}_{platformIdentifier}_minimal.tar.bz2)""";
-            
+
             using (var client = new WebClient())
             {
-                Logger.Instance.Log.LogInformation($"CefLoader: Load index page {indexUrl}");
+                _logger?.LogInformation($"CefLoader: Load index page {indexUrl}");
                 var cefIndex = client.DownloadString(indexUrl);
-                
+
                 // up to Chromium version 72
                 var found = new Regex(binaryNamePattern1, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase).Match(cefIndex);
                 if (found.Success)
@@ -202,13 +153,13 @@ namespace Chromely.Loader
                 return $"cef_binary_{build.CefVersion}_{platformIdentifier}_minimal.tar.bz2";
 
                 var message = $"CEF for chrome version {CefRuntime.ChromeVersion} platform {platformIdentifier} not found.";
-                Logger.Instance.Log.LogError("CefLoader: " + message);
+                _logger?.LogError("CefLoader: " + message);
             }
-            
+
             return "";
         }
 
-        public static void SetMacOSAppName(IChromelyConfiguration config)
+        public virtual void SetMacOSAppName(IChromelyConfiguration config)
         {
             if (config.Platform == ChromelyPlatform.MacOSX)
             {
@@ -236,21 +187,75 @@ namespace Chromely.Loader
             }
         }
 
-        private void GetDownloadUrl()
+        /// <summary>
+        /// Download CEF runtime files.
+        /// </summary>
+        /// <exception cref="Exception"></exception>
+        public void Download(ChromelyPlatform platform)
+        {
+            _logger?.LogInformation("CefLoader: Installing CEF runtime from " + CefBuildsDownloadUrl);
+            try
+            {
+                var watch = new Stopwatch();
+                watch.Start();
+                GetDownloadUrl();
+                if (!ParallelDownload())
+                {
+                    Download();
+                }
+                _logger?.LogInformation($"CefLoader: Download took {watch.ElapsedMilliseconds}ms");
+                watch.Restart();
+                DecompressArchive();
+                _logger?.LogInformation($"CefLoader: Decompressing archive took {watch.ElapsedMilliseconds}ms");
+                watch.Restart();
+                CopyFilesToAppDirectory();
+                _logger?.LogInformation($"CefLoader: Copying files took {watch.ElapsedMilliseconds}ms");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError("CefLoader: " + ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!string.IsNullOrEmpty(_tempBz2File))
+                {
+                    File.Delete(_tempBz2File);
+                }
+
+                if (!string.IsNullOrEmpty(_tempTarStream))
+                {
+                    File.Delete(_tempTarStream);
+                }
+
+                if (!string.IsNullOrEmpty(_tempTarFile))
+                {
+                    File.Delete(_tempTarFile);
+                }
+                if (!string.IsNullOrEmpty(_tempDirectory) && Directory.Exists(_tempDirectory))
+                {
+                    Directory.Delete(_tempDirectory, true);
+                }
+            }
+        }
+
+        #endregion
+
+        #region Internal methods
+
+        /// <summary>
+        /// Build download url from archive name.
+        /// </summary>
+        protected void GetDownloadUrl()
         {
             _archiveName = FindCefArchiveName(_platform, _architecture, _build);
             _folderName = _archiveName
                 .Replace("%2B", "+")
                 .Replace(".tar.bz2", "");
             _downloadUrl = CefDownloadUrl(_archiveName);
-            Logger.Instance.Log.LogInformation($"CefLoader: Found download URL {_downloadUrl}");
+            _logger?.LogInformation($"CefLoader: Found download URL {_downloadUrl}");
         }
 
-        private class Range  
-        {  
-            public long Start { get; set; }  
-            public long End { get; set; }  
-        }  
         private bool ParallelDownload()
         {
             try
@@ -262,20 +267,20 @@ namespace Chromely.Loader
                     _downloadLength = long.Parse(webResponse.Headers.Get("Content-Length"));
                 }
 
-                Logger.Instance.Log.LogInformation($"CefLoader: Parallel download {_archiveName}, {_downloadLength / (1024 * 1024)}MB");
+                _logger?.LogInformation($"CefLoader: Parallel download {_archiveName}, {_downloadLength / (1024 * 1024)}MB");
 
                 // Calculate ranges  
-                var readRanges = new List<Range>();
+                var readRanges = new List<DownloadRange>();
                 for (var chunk = 0; chunk < _numberOfParallelDownloads - 1; chunk++)
                 {
-                    var range = new Range()
+                    var range = new DownloadRange()
                     {
                         Start = chunk * (_downloadLength / _numberOfParallelDownloads),
                         End = ((chunk + 1) * (_downloadLength / _numberOfParallelDownloads)) - 1
                     };
                     readRanges.Add(range);
                 }
-                readRanges.Add(new Range()
+                readRanges.Add(new DownloadRange()
                 {
                     Start = readRanges.Any() ? readRanges.Last().End + 1 : 0,
                     End = _downloadLength - 1
@@ -294,7 +299,7 @@ namespace Chromely.Loader
                     using (var httpWebResponse = httpWebRequest.GetResponse() as HttpWebResponse)
                     {
                         var tempFilePath = Path.GetTempFileName();
-                        Logger.Instance.Log.LogInformation($"CefLoader: Load {tempFilePath} ({readRange.Start}..{readRange.End})");
+                        _logger?.LogInformation($"CefLoader: Load {tempFilePath} ({readRange.Start}..{readRange.End})");
                         using (var fileStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.Write))
                         {
                             httpWebResponse?.GetResponseStream()?.CopyTo(fileStream);
@@ -322,7 +327,7 @@ namespace Chromely.Loader
             }
             catch (Exception ex)
             {
-                Logger.Instance.Log.LogError("CefLoader.ParallelDownload: " + ex.Message);
+                _logger?.LogError("CefLoader.ParallelDownload: " + ex.Message);
             }
 
             return false;
@@ -337,7 +342,7 @@ namespace Chromely.Loader
                     File.Delete(_tempBz2File);
                 }
 
-                Logger.Instance.Log.LogInformation($"CefLoader: Loading {_tempBz2File}");
+                _logger?.LogInformation($"CefLoader: Loading {_tempBz2File}");
                 client.DownloadProgressChanged += Client_DownloadProgressChanged;
 
                 client.DownloadFile(_downloadUrl, _tempBz2File);
@@ -346,7 +351,7 @@ namespace Chromely.Loader
 
         private void DecompressArchive()
         {
-            Logger.Instance.Log.LogInformation("CefLoader: Decompressing BZ2 archive");
+            _logger?.LogInformation("CefLoader: Decompressing BZ2 archive");
             using (var tarStream = new FileStream(_tempTarStream, FileMode.Create, FileAccess.ReadWrite))
             {
                 using (var inStream = new FileStream(_tempBz2File, FileMode.Open, FileAccess.Read, FileShare.None))
@@ -354,11 +359,11 @@ namespace Chromely.Loader
                     BZip2.Decompress(inStream, tarStream, false, DecompressProgressChanged);
                 }
 
-                Logger.Instance.Log.LogInformation("CefLoader: Decompressing TAR archive");
+                _logger?.LogInformation("CefLoader: Decompressing TAR archive");
                 tarStream.Seek(0, SeekOrigin.Begin);
                 var tar = TarArchive.CreateInputTarArchive(tarStream);
-                tar.ProgressMessageEvent += (archive, entry, message) => Logger.Instance.Log.LogInformation("CefLoader: Extracting " + entry.Name);
-                    
+                tar.ProgressMessageEvent += (archive, entry, message) => _logger?.LogInformation("CefLoader: Extracting " + entry.Name);
+
                 Directory.CreateDirectory(_tempDirectory);
                 tar.ExtractContents(_tempDirectory);
             }
@@ -366,7 +371,7 @@ namespace Chromely.Loader
 
         private void CopyFilesToAppDirectory()
         {
-            Logger.Instance.Log.LogInformation("CefLoader: Copy files to application directory");
+            _logger?.LogInformation("CefLoader: Copy files to application directory");
             // now we have all files in the temporary directory
             // we have to copy the 'Release' folder to the application directory
             var srcPathRelease = Path.Combine(_tempDirectory, _folderName, "Release");
@@ -397,19 +402,19 @@ namespace Chromely.Loader
             var resourcesFolder = Path.Combine(cefFrameworkFolder, "Resources");
             CopyDirectory(resourcesFolder, appDirectory);
         }
-        
+
         private void DecompressProgressChanged(int percent)
         {
-            if(percent < 10)
+            if (percent < 10)
             {
                 _lastPercent = 0;
             }
-            if((percent % 10 != 0) || percent == _lastPercent)
+            if ((percent % 10 != 0) || percent == _lastPercent)
             {
-                return;   
+                return;
             }
             _lastPercent = percent;
-            Logger.Instance.Log.LogInformation($"CefLoader: Decompress progress = {percent}%");
+            _logger?.LogInformation($"CefLoader: Decompress progress = {percent}%");
         }
 
         private void Client_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
@@ -421,11 +426,11 @@ namespace Chromely.Loader
             }
             if ((percent % 10 != 0) || percent == _lastPercent)
             {
-                return;   
+                return;
             }
 
             _lastPercent = percent;
-            Logger.Instance.Log.LogInformation($"CefLoader: Download progress = {percent}%");
+            _logger?.LogInformation($"CefLoader: Download progress = {percent}%");
         }
 
         private static void CopyDirectory(string sourceDirName, string destDirName)
@@ -491,5 +496,7 @@ namespace Chromely.Loader
                 }
             }
         }
+
+        #endregion
     }
 }
