@@ -6,12 +6,15 @@ using Chromely.Core;
 using Chromely.Core.Configuration;
 using Chromely.Core.Host;
 using Chromely.Core.Network;
+using Chromely.Interfaces;
 
 namespace Chromely
 {
     public partial class WindowController : ChromelyWindowController
     {
         protected IChromelyRequestSchemeProvider _requestSchemeProvider;
+
+        protected IDynamicCefBinariesLoader _dynamicCefBinariesLoader;
 
         public WindowController(IChromelyWindow window, 
                                 IChromelyNativeHost nativeHost, 
@@ -20,7 +23,8 @@ namespace Chromely
                                 IChromelyRequestTaskRunner requestTaskRunner, 
                                 IChromelyCommandTaskRunner commandTaskRunner,
                                 IChromelyRequestSchemeProvider requestSchemeProvider,
-                                ChromelyHandlersResolver handlersResolver)
+                                ChromelyHandlersResolver handlersResolver,
+                                IDynamicCefBinariesLoader dynamicCefBinariesLoader)
             : base(window, nativeHost, config, routeProvider, requestTaskRunner, commandTaskRunner, handlersResolver)
         {
             // WindowController.NativeWindow
@@ -30,6 +34,7 @@ namespace Chromely
             _nativeHost.HostClose += OnWindowClose;
 
             _requestSchemeProvider = requestSchemeProvider;
+            _dynamicCefBinariesLoader = dynamicCefBinariesLoader;
         }
     }
 }

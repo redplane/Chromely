@@ -6,6 +6,8 @@ using Chromely.Core;
 using Chromely.Core.Defaults;
 using Chromely.Core.Host;
 using Chromely.Core.Network;
+using Chromely.Interfaces;
+using Chromely.Loader;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xilium.CefGlue;
@@ -28,6 +30,8 @@ namespace Chromely
             services.TryAddSingleton<IChromelyCommandTaskRunner, DefaultCommandTaskRunner>();
 
             services.TryAddSingleton<IChromelyWindow, Window>();
+            services.TryAddSingleton<IDynamicCefBinariesLoader, DynamicCefBinariesLoader>();
+            services.TryAddSingleton<IDynamicCefLoader, DynamicCefLoader>();
             services.TryAddSingleton<ChromelyWindowController, WindowController>();
         }
 

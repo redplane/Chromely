@@ -57,7 +57,7 @@ namespace Chromely
 
             _config.ChromelyVersion = CefRuntime.ChromeVersion;
 
-            var tempFiles = CefBinariesLoader.Load(_config);
+            var tempFiles = _dynamicCefBinariesLoader.Load(_config);
 
             CefRuntime.EnableHighDpiSupport();
 
@@ -132,7 +132,7 @@ namespace Chromely
             RegisterDefaultSchemeHandlers();
             RegisterCustomSchemeHandlers();
 
-            CefBinariesLoader.DeleteTempFiles(tempFiles);
+            _dynamicCefBinariesLoader.DeleteTempFiles(tempFiles);
 
             _window.Init(_settings);
 
