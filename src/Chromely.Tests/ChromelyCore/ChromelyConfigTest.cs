@@ -28,7 +28,6 @@ namespace Chromely.Tests.ChromelyCore
             // Assert
             Assert.NotNull(config);
             Assert.Equal(appName, config.AppName);
-            Assert.Equal(windowTitle, config.WindowOptions.Title);
             Assert.Equal(platform, config.Platform);
             Assert.Equal(appExeLocation, config.AppExeLocation);
         }

@@ -30,8 +30,8 @@ namespace Chromely
             services.TryAddSingleton<IChromelyCommandTaskRunner, DefaultCommandTaskRunner>();
 
             services.TryAddSingleton<IChromelyWindow, Window>();
-            services.TryAddSingleton<IDynamicCefBinariesLoader, DynamicCefBinariesLoader>();
-            services.TryAddSingleton<IDynamicCefLoader, DynamicCefLoader>();
+            services.TryAddSingleton<IDynamicCefBinariesLoader, CefBinariesLoader>();
+            services.TryAddSingleton<IDynamicCefLoader, CefLoader>();
             services.TryAddSingleton<ChromelyWindowController, WindowController>();
         }
 

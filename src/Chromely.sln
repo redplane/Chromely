@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chromely.Tests", "Chromely.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chromely.Integration.TestApp", "Chromely.Integration.TestApp\Chromely.Integration.TestApp.csproj", "{BB5B56BF-FFDC-4A0C-A7A4-91F737509D4F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chromely.Downloader", "Chromely.Downloader\Chromely.Downloader.csproj", "{0F69D3EC-92F3-4C86-88FC-946290D42FFB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -85,6 +87,22 @@ Global
 		{BB5B56BF-FFDC-4A0C-A7A4-91F737509D4F}.ReleaseLinux|Any CPU.ActiveCfg = ReleaseLinux|x64
 		{BB5B56BF-FFDC-4A0C-A7A4-91F737509D4F}.ReleaseLinux|x64.ActiveCfg = ReleaseLinux|x64
 		{BB5B56BF-FFDC-4A0C-A7A4-91F737509D4F}.ReleaseLinux|x64.Build.0 = ReleaseLinux|x64
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.Debug|x64.Build.0 = Debug|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.DebugLinux|Any CPU.ActiveCfg = Debug|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.DebugLinux|Any CPU.Build.0 = Debug|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.DebugLinux|x64.ActiveCfg = Debug|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.DebugLinux|x64.Build.0 = Debug|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.Release|x64.ActiveCfg = Release|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.Release|x64.Build.0 = Release|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.ReleaseLinux|Any CPU.ActiveCfg = Release|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.ReleaseLinux|Any CPU.Build.0 = Release|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.ReleaseLinux|x64.ActiveCfg = Release|Any CPU
+		{0F69D3EC-92F3-4C86-88FC-946290D42FFB}.ReleaseLinux|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -7,8 +7,8 @@ namespace Chromely.Interfaces
 {
     public interface IDynamicCefLoader
     {
-        string FindCefArchiveName(ChromelyPlatform platform,
-            Architecture processArchitecture, CefBuildNumbers build);
+        string GetCefArchiveName(ChromelyPlatform platform,
+            Architecture architecture, CefBuildNumbers build);
 
         void SetMacOSAppName(IChromelyConfiguration config);
 
